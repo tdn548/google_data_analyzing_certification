@@ -281,7 +281,7 @@ all_trips_v2 %>%
 all_trips_v2 %>% 
   mutate(weekday = wday(started_at, label = TRUE)) %>% 
   group_by(member_casual, weekday) %>% 
-  dplyr::summarise(number_of_rides = n()
+  dplyr::summarise(number_of_rides = n() ##NOTE: when I tried sumarise( number_of_rides = n()) it is error so I put dplyr::sumarise
             ,average_duration = mean(ride_length)) %>% 
   arrange(member_casual, weekday)  %>% 
   ggplot(aes(x = weekday, y = number_of_rides, fill = member_casual)) +
