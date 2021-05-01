@@ -1,0 +1,349 @@
+---
+title: "Case 2"
+author: "Thanh Nguyen"
+date: "4/29/2021"
+output:
+  pdf_document: default
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+---
+title: "Example Starter R Script"
+output: html_document
+---
+
+## Introduction and background
+This is meant to be a sample starter script if you choose to use R for this case study. This is not comprehensive of everything you'll do in the case study, but should be used as a starting point if it is helpful for you.
+
+## Upload your CSV files to R
+Remember to upload your CSV files to your project from the relevant data source:
+https://www.kaggle.com/arashnic/fitbit
+
+Remember, there are many different CSV files in the dataset. We have uploaded two CSVs into the project, but you will likely want to use more than just these two CSV files.
+
+## Installing and loading common packages and libraries
+You can always install and load packages along the way as you may discover you need different packages after you start your analysis. If you already have some of these packages installed and loaded, you can skip those ones - or you can choose to run those specific lines of code anyway. It may take a few moments to run.
+
+```{r}
+#install.packages('tidyverse')
+#library(tidyverse)
+```
+
+
+## Loading your CSV files
+Here we'll create a dataframe named 'daily_activity' and read in one of the CSV files from the dataset. In this project I used daily_activity, daily_calories, sleep_day and weight_log
+
+```{r}
+daily_activity <- read.csv("dailyActivity_merged.csv")
+daily_calories = read.csv("dailyCalories_merged.csv")
+sleep_day = read.csv("sleepday_merged.csv")
+weight_log = read.csv("weightLogInfo_merged.csv")
+daily_intensities = read.csv("dailyIntensities_merged.csv")
+daily_steps = read.csv("dailySteps_merged.csv")
+```
+
+## Exploring a few key tables
+
+Take a look at the daily_activity datasets.
+```{r}
+head(daily_activity)
+head(daily_calories)
+head(sleep_day)
+head(weight_log)
+```
+
+Identify all the columsn in the daily_activity data.
+```{r}
+colnames(daily_activity)
+colnames(daily_calories)
+colnames(sleep_day)
+colnames(weight_log)
+```
+```{r}
+#glimpse(daily_activity)
+#glimpse(daily_calories)
+#glimpse(sleep_day)
+#glimpse(weight_log)
+```
+```{r}
+str(daily_activity)
+str(daily_calories)
+```
+
+
+As we can se, the date columns in datasets is Character and some datasets include time. 
+
+```{r}
+install.packages("lubridate")
+library(lubridate)
+```
+
+
+```{r}
+#rename activity_day column to "ActivityDate" for consistency, and then change to date class
+daily_calories = daily_calories %>%
+  rename (ActivityDate=ActivityDay) %>%
+  mutate(activity_date = mdy(ActivityDate))
+```
+
+```{r}
+daily_calories = select(daily_calories, -c("ActivityDate"))
+```
+
+```{r}
+#in sleep_day dataset, the Sleepday column include time, so I will split it and change to mdy
+ #add a datetime column and drop former "time" column
+sleep_day = sleep_day %>%
+  rename(ActivityDate=SleepDay) %>% 
+  mutate(activity_date = mdy_hms(ActivityDate))
+  
+```
+
+```{r}
+sleep_day = select(sleep_day,-c("ActivityDate"))
+```
+
+
+
+```{r}
+#daily_intensities
+daily_intensities = daily_intensities %>%
+  rename(activitydate = ActivityDay) %>% 
+  mutate(activity_date = mdy(activitydate))
+daily_intensities = select(daily_intensities, -c("activitydate"))
+```
+
+```{r}
+#daily_activity
+daily_activity = daily_activity %>% 
+  rename(activitydate = ActivityDate) %>% 
+  mutate(activity_date = mdy(activitydate))
+
+daily_activity = select(daily_activity, -c("activitydate"))
+```
+
+
+```{r}
+#Compare dataframes to check for consistency among data types, so need to install janitor
+
+install.packages("janitor")
+library(janitor)
+
+compare_df_cols(daily_activity, daily_calories, daily_intensities,sleep_day, weight_log)
+
+#need to rename step_total column in daily_steps, hourly_steps, and minute_steps dfs to keep consistent with daily_activity df
+daily_steps <- daily_steps  %>% 
+rename(total_steps = step_total)
+
+hourly_steps <- hourly_steps %>%
+rename(total_steps = step_total)
+
+minute_steps <- minute_steps %>%
+rename(total_steps = steps)
+```
+
+NOTE: as we can see that the type of activity_date from sleep_day is POSIXct so it needs changing to Date
+
+## option 2 to clean sleep_day 
+```{r}
+sleep_day = sleep_day %>%  
+  mutate(activity_date = as.Date(as.character(as.POSIXct(activity_date))))
+
+# check again and all match
+
+compare_df_cols(daily_activity, daily_calories, daily_intensities,sleep_day, weight_log)
+```
+
+## Sumarize data
+
+```{r}
+summary(daily_activity)
+skim(daily_activity)
+
+summary(daily_calories)
+skim(daily_calories)
+
+summary(daily_intensities)
+skim(daily_intensities)
+
+summary(sleep_day)
+skim(sleep_day)
+
+summary(weight_log)
+skim(weight_log)
+```
+
+
+```{r distinct users}
+n_distinct(daily_activity$Id) #daily activits
+n_distinct(sleep_day$Id) # sleep_day
+n_distinct(weight_log$Id) # weight_log
+n_distinct(daily_calories$Id) #daily calories
+```
+From the aboves, we can see that just only 8 participants tracked their weight log that is a small sample size to analyze data.
+
+## Merging these datasets together
+
+```{r}
+install.packages("tidyverse")
+library(tidyverse)
+```
+
+```{r}
+# i want to try merge and full_join function to pratice
+#merge
+combine_data = merge(daily_activity,sleep_day,by=c("Id", "activity_date"))
+#full_join
+daily_activity_sleep = full_join(combine_data, daily_intensities, by = c("activity_date","Id"), copy = FALSE) #daily_activities,intensities sleep)
+```
+
+How many observations are there in each dataframe?
+```{r observations}
+nrow(daily_activity)
+nrow(sleep_day)
+```
+
+What are some quick summary statistics we'd want to know about each data frame?
+
+For the daily activity dataframe:
+```{r}
+daily_activity %>%  
+  select(TotalSteps,
+         TotalDistance,
+         SedentaryMinutes) %>%
+  summary()
+```
+
+For the sleep dataframe:
+```{r}
+sleep_day %>%  
+  select(TotalSleepRecords,
+         TotalMinutesAsleep,
+         TotalTimeInBed) %>%
+  summary()
+```
+
+What does this tell us about how this sample of people's activities? 
+
+## Plotting a few explorations
+
+What's the relationship between steps taken in a day and sedentary minutes? How could this help inform the customer segments that we can market to? E.g. position this more as a way to get started in walking more? Or to measure steps that you're already taking?
+
+```{r}
+ggplot(data=daily_activity, aes(x=TotalSteps, y=SedentaryMinutes)) + geom_point()
+```
+
+What's the relationship between minutes asleep and time in bed? You might expect it to be almost completely linear - are there any unexpected trends?
+
+```{r}
+ggplot(data=sleep_day, aes(x=TotalMinutesAsleep, y=TotalTimeInBed)) + geom_point()
+```
+
+What could these trends tell you about how to help market this product? Or areas where you might want to explore further?
+
+
+```{r}
+ggplot(data=daily_activity_sleep, aes(x=TotalMinutesAsleep, y=TotalSteps), fill = type_of_intensities) + geom_point()
+```
+
+I want to divide the participants into the group based on intersities levels
+
+```{r}
+data_by_usertype = dailyActivity_merged %>%
+  group_by(Id) %>%
+  summarize(a = sum(SedentaryMinutes),count_a = length(SedentaryMinutes), avg_sedentaryminutes = round(a/count_a,digits = 2),
+            b = sum(LightlyActiveMinutes), count_b = length(LightlyActiveMinutes), avg_LightlyActiveMinutes = round(b/count_b,digits = 2),
+            c = sum(FairlyActiveMinutes), count_c = length(FairlyActiveMinutes), avg_FairlyActiveMinutes = round(c/count_c,digits = 2),
+            d = sum(VeryActiveMinutes),count_d = length(VeryActiveMinutes), avg_VeryActiveMinutes = round(d/count_d, digits =2)) %>% 
+  select(c(Id,avg_sedentaryminutes,avg_LightlyActiveMinutes,avg_FairlyActiveMinutes,avg_VeryActiveMinutes))
+
+```
+
+```{r}
+data_by_usertype%>% 
+  pivot_longer(c(avg_sedentaryminutes,avg_LightlyActiveMinutes,avg_FairlyActiveMinutes,avg_VeryActiveMinutes), names_to = "User_intensities_level", values_to = "minutes")
+
+
+
+```
+```{r}
+  data_by_usertype$Id=factor(data_by_usertype$Id)
+data_by_usertype$minutes=factor(data_by_usertype$minutes)
+data_by_usertype$User_intensities_level= factor(data_by_usertype$User_intensities_level,levels=c("avg_sedentaryminutes","avg_LightlyActiveMinutes","avg_FairlyActiveMinutes","avg_VeryActiveMinutes"))
+  
+ggplot(data_by_usertype, aes(fill = "User_intensities_level", y = minutes, x = Id)) +  
+    geom_bar(position="stack", stat="identity")
+```
+
+
+```{r}
+summary_filtered_steps = daily_activity_sleep %>% 
+  filter(TotalSteps > 0) %>% 
+  group_by(Id) %>% 
+  summarize(sum_steps = sum(TotalSteps), avg_steps = mean(TotalSteps), number_step_entries = length(TotalSteps))
+  summary_filtered_steps$step_level = case_when(
+      summary_filtered_steps$avg_steps >= 10000 ~ "Very Active",
+      summary_filtered_steps$avg_steps >= 5000 ~ "Moderate Active",
+      summary_filtered_steps$avg_steps >= 1000 ~ "Low Active",
+      summary_filtered_steps$avg_steps < 1000 ~ "Inactive"
+    )
+  
+new_data = merge(summary_filtered_steps, daily_activity_sleep, by=c("Id"), all.y = TRUE)
+new_data = new_data %>% 
+  drop_na()
+  
+ggplot(data=new_data)+ geom_point(aes(x=TotalMinutesAsleep, y=TotalSteps, color = step_level))+geom_smooth(mapping = aes(x=TotalMinutesAsleep, y=TotalSteps))
+```
+```{r}
+ggplot(data=new_data)+ geom_point(aes(x=TotalMinutesAsleep, y=TotalSteps, color = step_level))+geom_smooth(mapping = aes(x=TotalMinutesAsleep, y=TotalSteps))+facet_wrap(~step_level)
+```
+
+
+```{r}
+ggplot(data = new_data) +
+  geom_point(mapping = aes(x=avg_steps, y=Calories, color = step_level))+
+  facet_wrap(~step_level)
+```
+
+```{r}
+ggplot(data=new_data,aes(x=TotalMinutesAsleep, y=TotalSteps, color = step_level))+ geom_point()+stat_ellipse()
+```
+
+
+
+Take a look at how many participants are in this data set.
+
+```{r}
+n_distinct(combined_data$Id)
+```
+
+Note that there were more participant Ids in the daily activity dataset that have been filtered out using merge. Consider using 'outer_join' to keep those in the dataset. 
+
+Now you can explore some different relationships between activity and sleep as well. For example, do you think participants who sleep more also take more steps or fewer steps per day? Is there a relationship at all? How could these answers help inform the marketing strategy of how you position this new product?
+
+This is just one example of how to get started with this data - there are many other files and questions to explore as well!
